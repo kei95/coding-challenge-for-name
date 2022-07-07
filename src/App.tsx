@@ -4,59 +4,76 @@ import "./App.css";
 // ========= constant =========
 const MY_ACCOUNT_NAME = "kei95";
 
-// ========== Definition ==========
+// ========== definition ==========
 export interface User {
   login: string;
   id: number;
 }
 
-const ROW_STATE = {
+const REQUEST_STATE = {
   LOADING: "LOADING",
-  OPEN: "OPEN",
+  DONE: "DONE",
   DEFAULT: "DEFAULT",
 } as const;
 
-type RowState = keyof typeof ROW_STATE;
+type RequestState = keyof typeof REQUEST_STATE;
 
-// ========== Util ==========
-async function fetchFollowers(username: string): Promise<User[]> {
-  const res = await fetch(`https://api.github.com/users/${username}/following`);
+// ========== util ==========
+async function fetchFollowers(username: string): Promise<User[] | undefined> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/users/${username}/following`
+    );
 
-  if (res.ok) {
-    const jsonizedRes = (await res.json()) as User[];
-    return jsonizedRes;
+    if (res.status < 300 && res.status > 199) {
+      const jsonizedRes = (await res.json()) as User[];
+      return jsonizedRes;
+    }
+  } catch (error) {
+    console.error("error!", error);
   }
-  return [];
+
+  return undefined;
 }
 
-// ========== Component ==========
-function UserRow({ user }: { user: User }) {
-  const [userList, setUserList] = useState<User[]>([]);
-  const [state, setState] = useState<RowState>(ROW_STATE.DEFAULT);
-  const buttonText = state === ROW_STATE.LOADING ? "loading..." : "load";
+// ========== component ==========
+export function UserRow({ user }: { user: User }) {
+  const [followerList, setFollowerList] = useState<User[]>([]);
+  const [RequestState, setRequestState] = useState<RequestState>(
+    REQUEST_STATE.DEFAULT
+  );
+  const buttonText =
+    RequestState === REQUEST_STATE.LOADING ? "loading..." : "load";
 
   const handlePressButton = async () => {
-    setState(ROW_STATE.LOADING);
+    setRequestState(REQUEST_STATE.LOADING);
     const res = await fetchFollowers(user.login);
-    setState(ROW_STATE.OPEN);
-    setUserList(res);
+
+    // Bring the button back to default if request fails
+    if (!res) {
+      setRequestState(REQUEST_STATE.DEFAULT);
+      return;
+    }
+
+    setRequestState(REQUEST_STATE.DONE);
+    setFollowerList(res);
   };
 
   return (
     <ul>
-      <li key={user.id}>
+      <li>
         {user.login}
-        {state !== "OPEN" ? (
+        {RequestState !== "DONE" ? (
           <button
             onClick={handlePressButton}
-            className={state === "LOADING" ? "loadingButton" : ""}
+            className={RequestState === "LOADING" ? "loadingButton" : ""}
           >
             {buttonText}
           </button>
         ) : null}
         {/* list of the user's followers */}
-        {userList.map((user) => (
-          <UserRow user={user} />
+        {followerList.map((user) => (
+          <UserRow user={user} key={user.id} />
         ))}
       </li>
     </ul>
@@ -64,13 +81,23 @@ function UserRow({ user }: { user: User }) {
 }
 
 function App() {
-  const [userList, setUserList] = useState<User[]>([]);
+  const [followerList, setFollowerList] = useState<User[]>([]);
+  const [RequestState, setRequestState] = useState<RequestState>(
+    REQUEST_STATE.DEFAULT
+  );
+  const statesText =
+    RequestState === "LOADING"
+      ? "Loading..."
+      : "There's something wrong with you as a developer or this app. Please try again.";
 
   // Fetch my followers as initial list
   useEffect(() => {
     async function fetchMyFollowers() {
+      setRequestState(REQUEST_STATE.LOADING);
       const followers = await fetchFollowers(MY_ACCOUNT_NAME);
-      setUserList(followers);
+
+      setRequestState(REQUEST_STATE.DONE);
+      !!followers && setFollowerList(followers);
     }
     fetchMyFollowers();
   }, []);
@@ -78,9 +105,13 @@ function App() {
   return (
     <ul>
       <li>{MY_ACCOUNT_NAME}</li>
-      {userList.map((user) => (
-        <UserRow user={user} />
-      ))}
+      {followerList.length > 0 ? (
+        followerList.map((follower) => (
+          <UserRow user={follower} key={follower.id} />
+        ))
+      ) : (
+        <p>{statesText}</p>
+      )}
     </ul>
   );
 }

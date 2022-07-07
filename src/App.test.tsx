@@ -1,29 +1,108 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-import App, { User } from "./App";
+import userEvent from "@testing-library/user-event";
 
-const MOCK_LIST: User[] = [
-  {
+import App, { User, UserRow } from "./App";
+import { rest, server } from "./mocks/server";
+import { MOCKED_FOLLOWER_LIST } from "./mocks/handlers";
+
+describe("<App />", () => {
+  test("render the component - it should contain my account name", async () => {
+    render(<App />);
+
+    const myName = screen.getByText(/kei95/i);
+    expect(myName).toBeInTheDocument();
+  });
+
+  test("fetches my followers upon render - it should show expected users with load buttons", async () => {
+    render(<App />);
+
+    // find all followers in mocked sponse
+    for (const follower of MOCKED_FOLLOWER_LIST) {
+      expect(await screen.findByText(follower.login)).toBeInTheDocument();
+    }
+
+    // make sure all the added followers have load button
+    expect(await screen.findAllByText(/load/i)).toHaveLength(
+      MOCKED_FOLLOWER_LIST.length
+    );
+  });
+
+  test("fetch failure - it should show error message", async () => {
+    // set up error response for the API
+    const testErrorMessage = "THIS IS A TEST FAILURE";
+    server.use(
+      rest.get(
+        "https://api.github.com/users/:username/following",
+        async (req, res, ctx) => {
+          return res(ctx.status(500), ctx.json({ message: testErrorMessage }));
+        }
+      )
+    );
+
+    render(<App />);
+
+    const errorMessage =
+      "There's something wrong with you as a developer or this app. Please try again.";
+    expect(await screen.findByText(errorMessage)).toBeInTheDocument();
+  });
+});
+
+describe("<UserRow />", () => {
+  const MOCKED_USER: User = {
     login: "Lorem Ipsum",
-    id: 14291380,
-  },
-  {
-    login: "de Finibus Bonorum et Malorum",
-    id: 42897193,
-  },
-];
+    id: 0,
+  };
 
-global.fetch = Promise.resolve({
-  json: () => Promise.resolve(MOCK_LIST),
-}) as any;
+  test("render the component - should render given user's name with load button", async () => {
+    render(<UserRow user={MOCKED_USER} />);
 
-// TODO: figure out how to mock global fetch
-test("renders my account name with load button", () => {
-  render(<App />);
+    const mockedUserName = screen.getByText(MOCKED_USER.login);
+    const defaultButton = screen.getByText("load");
 
-  const myName = screen.getByText(/kei95/i);
-  const buttonText = screen.getByText("load");
+    expect(mockedUserName).toBeInTheDocument();
+    expect(defaultButton).toBeInTheDocument();
+  });
 
-  expect(myName).toBeInTheDocument();
-  expect(buttonText).toBeInTheDocument();
+  test("click on load button - it should trigger a request to get followers and add them to the list", async () => {
+    render(<UserRow user={MOCKED_USER} />);
+
+    const defaultButton = screen.getByText("load");
+    userEvent.click(defaultButton);
+
+    // button should have loading... text while fetching data
+    expect(screen.getByText("loading...")).toBeInTheDocument();
+
+    // find all followers in mocked response
+    for (const follower of MOCKED_FOLLOWER_LIST) {
+      expect(await screen.findByText(follower.login)).toBeInTheDocument();
+    }
+
+    // make sure all the added followers have load button
+    expect(await screen.findAllByText(/load/i)).toHaveLength(
+      MOCKED_FOLLOWER_LIST.length
+    );
+  });
+
+  test("click on load button but fails fetch - button should back to be default state", async () => {
+    // set up error response for the API
+    const testErrorMessage = "THIS IS A TEST FAILURE";
+    server.use(
+      rest.get(
+        "https://api.github.com/users/:username/following",
+        async (req, res, ctx) => {
+          return res(ctx.status(500), ctx.json({ message: testErrorMessage }));
+        }
+      )
+    );
+
+    render(<UserRow user={MOCKED_USER} />);
+
+    const defaultButton = screen.getByText("load");
+    userEvent.click(defaultButton);
+
+    // button should have loading... text while fetching data
+    expect(screen.getByText("loading...")).toBeInTheDocument();
+
+    expect(defaultButton).toBeInTheDocument();
+  });
 });
