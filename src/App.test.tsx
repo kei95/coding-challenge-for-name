@@ -66,11 +66,12 @@ describe("<UserRow />", () => {
   test("click on load button - it should trigger a request to get followers and add them to the list", async () => {
     render(<UserRow user={MOCKED_USER} />);
 
-    const defaultButton = screen.getByText("load");
-    userEvent.click(defaultButton);
+    const defaultButtonText = "load";
+    const loadingButtonText = "loading...";
+    userEvent.click(screen.getByText(defaultButtonText));
 
     // button should have loading... text while fetching data
-    expect(screen.getByText("loading...")).toBeInTheDocument();
+    expect(screen.getByText(loadingButtonText)).toBeInTheDocument();
 
     // find all followers in mocked response
     for (const follower of MOCKED_FOLLOWER_LIST) {
@@ -78,7 +79,7 @@ describe("<UserRow />", () => {
     }
 
     // make sure all the added followers have load button
-    expect(await screen.findAllByText(/load/i)).toHaveLength(
+    expect(await screen.findAllByText(defaultButtonText)).toHaveLength(
       MOCKED_FOLLOWER_LIST.length
     );
   });
@@ -97,13 +98,14 @@ describe("<UserRow />", () => {
 
     render(<UserRow user={MOCKED_USER} />);
 
-    const defaultButton = screen.getByText("load");
-    userEvent.click(defaultButton);
+    const defaultButtonText = "load";
+    const loadingButtonText = "loading...";
+    userEvent.click(screen.getByText(defaultButtonText));
 
     // button should have loading... text while fetching data
-    expect(screen.getByText("loading...")).toBeInTheDocument();
+    expect(screen.getByText(loadingButtonText)).toBeInTheDocument();
 
     // once request fails, the button should back to be default
-    expect(await screen.findByText("load")).toBeInTheDocument();
+    expect(await screen.findByText(defaultButtonText)).toBeInTheDocument();
   });
 });
