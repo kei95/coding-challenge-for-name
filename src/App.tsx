@@ -24,8 +24,9 @@ async function fetchFollowers(username: string): Promise<User[] | undefined> {
     const res = await fetch(
       `https://api.github.com/users/${username}/following`
     );
+    const isResponseSuccessful = res.status < 300 && res.status > 199;
 
-    if (res.status < 300 && res.status > 199) {
+    if (isResponseSuccessful) {
       const jsonizedRes = (await res.json()) as User[];
       return jsonizedRes;
     }
@@ -33,6 +34,7 @@ async function fetchFollowers(username: string): Promise<User[] | undefined> {
     console.error("error!", error);
   }
 
+  // case of failure/error
   return undefined;
 }
 
