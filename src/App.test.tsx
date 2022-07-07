@@ -103,6 +103,7 @@ describe("<UserRow />", () => {
     // button should have loading... text while fetching data
     expect(screen.getByText("loading...")).toBeInTheDocument();
 
-    expect(defaultButton).toBeInTheDocument();
+    // once request fails, the button should back to be default
+    expect(await screen.findByText("load")).toBeInTheDocument();
   });
 });
